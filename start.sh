@@ -2,19 +2,23 @@
 
 echo "Iniciando despliegue..."
 
-# 1. Mover archivos vitales (Sobrescribir para permitir actualizaciones)
+# 1. Mover archivos nucleares (Siempre se actualizan)
 echo "Actualizando núcleo del servidor e icono..."
 cp -f /app/server.jar /data/server.jar
-cp -f /app/server-icon.png /data/server-icon.png  <-- ¡Esta es la línea nueva!
+# Aseguramos que el icono se fuerce también
+cp -f /app/server-icon.png /data/server-icon.png 
 cp -rf /app/libraries /data/
 cp -rf /app/versions /data/
 
-# 2. Mover archivos de configuración (SIN sobrescribir)
-echo "Verificando configuraciones..."
-if [ ! -f /data/server.properties ]; then
-    cp /app/server.properties /data/
-fi
+# 2. CONFIGURACIÓN: AQUI ESTABA EL PROBLEMA
+# Antes preguntábamos si existía. Ahora lo forzamos para que tus cambios en GitHub
+# se apliquen en el servidor real.
+echo "Actualizando server.properties..."
+cp -f /app/server.properties /data/server.properties
 
+# 3. Archivos de estado (Estos SI los protegemos)
+# La whitelist y ops (administradores) se suelen cambiar desde dentro del juego
+# así que es mejor no sobrescribirlos si ya existen.
 if [ ! -f /data/whitelist.json ]; then
     cp /app/whitelist.json /data/
 fi
@@ -23,9 +27,9 @@ if [ ! -f /data/ops.json ]; then
     cp /app/ops.json /data/
 fi
 
-# 3. Aceptar EULA
+# 4. Aceptar EULA
 echo "eula=true" > /data/eula.txt
 
-# 4. Iniciar el servidor
+# 5. Iniciar el servidor
 echo "Arrancando Minecraft..."
-exec java -Xmx2G -Xms1G -jar /data/server.jar nogui
+exec java -Xmx8G -Xms1G -jar /data/server.jar nogui
