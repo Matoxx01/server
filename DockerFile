@@ -1,0 +1,19 @@
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /data
+
+# Copiamos los archivos
+COPY . .
+
+# Definimos una variable de entorno por defecto para la RAM.
+# En Railway podrás cambiar esto en la pestaña "Variables".
+ENV SERVER_RAM=3G
+
+# Exponemos el puerto
+EXPOSE 25565
+
+# Comando de inicio optimizado para el Plan Hobby:
+# 1. Usamos ${SERVER_RAM} para que sea dinámico.
+# 2. Xms y Xmx iguales es MEJOR para servidores dedicados (evita lag por redimensionamiento de RAM).
+# 3. UseG1GC es crítico para Minecraft 1.18+ y Java 21.
+CMD java -Xms${SERVER_RAM} -Xmx${SERVER_RAM} -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -jar server.jar nogui
