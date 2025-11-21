@@ -1,19 +1,18 @@
 FROM eclipse-temurin:21-jre-alpine
 
-WORKDIR /data
+# Instalamos bash por si acaso, aunque usamos sh
+RUN apk add --no-cache bash
 
-# Copiamos los archivos
+# 1. Usamos /app para guardar los archivos originales de la imagen
+WORKDIR /app
 COPY . .
 
-# Definimos una variable de entorno por defecto para la RAM.
-# En Railway podrás cambiar esto en la pestaña "Variables".
-ENV SERVER_RAM=3G
+# 2. Damos permisos de ejecución al script
+RUN chmod +x start.sh
 
-# Exponemos el puerto
-EXPOSE 25565
+# 3. Definimos el volumen (Railway lo montará aquí)
+VOLUME /data
+WORKDIR /data
 
-# Comando de inicio optimizado para el Plan Hobby:
-# 1. Usamos ${SERVER_RAM} para que sea dinámico.
-# 2. Xms y Xmx iguales es MEJOR para servidores dedicados (evita lag por redimensionamiento de RAM).
-# 3. UseG1GC es crítico para Minecraft 1.18+ y Java 21.
-CMD java -Xms${SERVER_RAM} -Xmx${SERVER_RAM} -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -jar server.jar nogui
+# 4. El comando de inicio ejecuta nuestro script
+CMD ["/app/start.sh"]
