@@ -17,6 +17,7 @@ Este es un servidor de Minecraft vanilla configurado para ejecutarse en contened
 - **Máximo de jugadores**: 20
 - **Puerto**: 25565
 - **MOTD**: iClub official server
+- **🔔 Notificaciones Discord**: Alertas automáticas cuando jugadores se unen al servidor
 
 ## 🐳 Despliegue con Docker
 
@@ -60,6 +61,33 @@ docker run -d -p 25565:25565 \
 ```
 
 ## ⚙️ Configuración
+
+### 🔔 Configurar notificaciones de Discord
+
+El servidor puede enviar notificaciones a Discord cuando un jugador se une:
+
+1. **Crea un webhook en Discord:**
+   - Ve a tu servidor de Discord
+   - Selecciona el canal donde quieres recibir las notificaciones
+   - Click derecho -> Editar canal -> Integraciones -> Webhooks
+   - Crear webhook
+   - Copia la URL del webhook
+
+2. **Configura la variable de entorno:**
+
+   **En Railway:**
+   - Ve a tu proyecto -> Variables
+   - Añade: `DISCORD_WEBHOOK_URL` = `tu-webhook-url`
+
+   **En Docker local:**
+   ```bash
+   docker run -d -p 25565:25565 \
+     -e DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/TU_WEBHOOK" \
+     --name minecraft-server \
+     iclub-minecraft-server
+   ```
+
+3. **Reinicia el servidor** y recibirás notificaciones cuando los jugadores se conecten
 
 ### Ajustar memoria RAM
 

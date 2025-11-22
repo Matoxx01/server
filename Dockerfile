@@ -1,11 +1,14 @@
 FROM eclipse-temurin:21-jre-alpine
 
-# Instalamos bash para el script
-RUN apk add --no-cache bash
+# Instalamos bash, python3 y pip para el script y el monitor de Discord
+RUN apk add --no-cache bash python3 py3-pip
 
 # 1. Usamos /app para guardar los archivos originales
 WORKDIR /app
 COPY . .
+
+# Instalar dependencias de Python para el monitor de Discord
+RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
 # 2. Damos permisos de ejecución al script
 RUN chmod +x start.sh

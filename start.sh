@@ -30,6 +30,10 @@ fi
 # 4. Aceptar EULA
 echo "eula=true" > /data/eula.txt
 
-# 5. Iniciar el servidor
+# 5. Iniciar el monitor de Discord en segundo plano
+echo "Iniciando monitor de Discord..."
+python3 /app/discord_monitor.py &
+
+# 6. Iniciar el servidor
 echo "Arrancando Minecraft..."
 exec java -Xmx8G -Xms1G -jar /data/server.jar nogui
