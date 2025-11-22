@@ -142,28 +142,32 @@ def monitor_logs():
     # Conjunto para rastrear jugadores ya notificados (evitar duplicados)
     notified_players = set()
     
-    # Leer eventos existentes primero
+    # Leer eventos existentes primero (solo para posicionarnos al final)
     print("📖 Leyendo eventos existentes...", flush=True)
     try:
         with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
+            event_count = 0
             for line in f:
                 if 'joined the game' in line:
-                    match = JOIN_PATTERN.search(line)
-                    if match:
-                        player_name = match.group(2)
-                        notified_players.add(player_name)
-                        print(f"📋 Evento anterior: {player_name}", flush=True)
+                    event_count += 1
             last_position = f.tell()
+            if event_count > 0:
+                print(f"📋 Encontrados {event_count} eventos anteriores (no se notificarán)", flush=True)
     except:
         last_position = 0
     
     print("✅ Listo! Monitoreando eventos nuevos...", flush=True)
     print(f"   Posición inicial: {last_position} bytes", flush=True)
+    print("   Desde ahora se notificarán TODAS las conexiones nuevas", flush=True)
     
     # Contador para debug
     heartbeat_counter = 0
     lines_read = 0
     last_size = log_path.stat().st_size
+    
+    # Diccionario para rastrear última notificación por jugador (evitar spam)
+    last_notification_time = {}
+    NOTIFICATION_COOLDOWN = 60  # segundos entre notificaciones del mismo jugador
     
     # Monitorear archivo usando stat() para detectar cambios
     while True:
@@ -202,12 +206,18 @@ def monitor_logs():
                                 player_name = match.group(2)
                                 print(f"✅ MATCH: {player_name} a las {join_time}", flush=True)
                                 
-                                if player_name not in notified_players:
-                                    print(f"🎮 ¡NUEVO JUGADOR! {player_name}", flush=True)
+                                # Verificar cooldown para evitar spam
+                                current_time = time.time()
+                                last_notif = last_notification_time.get(player_name, 0)
+                                time_since_last = current_time - last_notif
+                                
+                                if time_since_last >= NOTIFICATION_COOLDOWN:
+                                    print(f"🎮 ¡CONEXIÓN DETECTADA! {player_name}", flush=True)
                                     send_discord_message(player_name, join_time)
-                                    notified_players.add(player_name)
+                                    last_notification_time[player_name] = current_time
                                 else:
-                                    print(f"⏭️ Ya notificado: {player_name}", flush=True)
+                                    remaining = int(NOTIFICATION_COOLDOWN - time_since_last)
+                                    print(f"⏭️ Cooldown activo: {player_name} (esperar {remaining}s)", flush=True)
                             else:
                                 print(f"❌ REGEX NO COINCIDE: {line.strip()}", flush=True)
                 
