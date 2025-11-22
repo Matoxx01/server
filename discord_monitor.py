@@ -86,11 +86,25 @@ def monitor_logs():
     print("   Esperando que jugadores se conecten...", flush=True)
     print("   Buscando el patrón: 'joined the game'", flush=True)
     
-    # Abrir el archivo y posicionarse al final
+    # Conjunto para rastrear jugadores ya notificados (evitar duplicados)
+    notified_players = set()
+    
+    # Abrir el archivo y leer desde el principio para no perder eventos
     with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
-        # Ir al final del archivo
-        f.seek(0, 2)
+        # Leer líneas existentes primero (para procesar conexiones que ya ocurrieron)
+        print("📖 Leyendo eventos existentes...", flush=True)
+        for line in f:
+            if 'joined the game' in line:
+                match = JOIN_PATTERN.search(line)
+                if match:
+                    join_time = match.group(1)
+                    player_name = match.group(2)
+                    notified_players.add(player_name)  # Marcar como ya procesado
+                    print(f"📋 Evento anterior encontrado: {player_name} a las {join_time}", flush=True)
         
+        print("✅ Listo! Ahora monitoreando eventos nuevos en tiempo real...", flush=True)
+        
+        # Ahora monitorear nuevas líneas en tiempo real
         while True:
             line = f.readline()
             
@@ -104,8 +118,14 @@ def monitor_logs():
                 if match:
                     join_time = match.group(1)
                     player_name = match.group(2)
-                    print(f"\n🎮 JUGADOR DETECTADO: {player_name} a las {join_time}", flush=True)
-                    send_discord_message(player_name, join_time)
+                    
+                    # Solo notificar si es un evento nuevo (no procesado antes)
+                    if player_name not in notified_players:
+                        print(f"\n🎮 JUGADOR DETECTADO: {player_name} a las {join_time}", flush=True)
+                        send_discord_message(player_name, join_time)
+                        notified_players.add(player_name)
+                    else:
+                        print(f"⏭️ Evento duplicado ignorado: {player_name}", flush=True)
                 elif 'joined the game' in line:
                     print(f"⚠️ Línea no coincidió con el patrón: {line.strip()}", flush=True)
             else:
