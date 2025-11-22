@@ -46,11 +46,25 @@ java -Xmx8G -Xms1G -jar /data/server.jar nogui &
 SERVER_PID=$!
 echo "Servidor iniciado con PID: $SERVER_PID"
 
-# 7. Esperar a que el servidor esté listo y forzar OP
+# 7. Esperar a que el servidor esté listo y forzar OP via RCON
 echo "Esperando a que el servidor inicie completamente..."
-sleep 10
-echo "Forzando permisos de operador para Matoxx01..."
-echo "op Matoxx01" > /proc/$SERVER_PID/fd/0 2>/dev/null || echo "op Matoxx01" | nc localhost 25575 2>/dev/null || echo "OP se debe aplicar manualmente"
+sleep 15
+echo "Forzando permisos de operador para Matoxx01 via RCON..."
+
+# Instalar mcrcon si no existe
+if ! command -v mcrcon &> /dev/null; then
+    echo "Instalando mcrcon..."
+    apk add --no-cache git gcc musl-dev make
+    cd /tmp
+    git clone https://github.com/Tiiffi/mcrcon.git
+    cd mcrcon
+    make
+    cp mcrcon /usr/local/bin/
+    cd /data
+fi
+
+# Enviar comando OP via RCON
+mcrcon -H localhost -P 25575 -p railway_rcon_2024 "op Matoxx01" && echo "✅ Permisos OP aplicados exitosamente" || echo "⚠️ No se pudo aplicar OP via RCON"
 
 # Mantener el proceso activo
 wait $SERVER_PID
