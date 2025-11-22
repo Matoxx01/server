@@ -30,9 +30,11 @@ fi
 # 4. Aceptar EULA
 echo "eula=true" > /data/eula.txt
 
-# 5. Iniciar el monitor de Discord en segundo plano
+# 5. Iniciar el monitor de Discord en segundo plano (sin buffer)
 echo "Iniciando monitor de Discord..."
-python3 /app/discord_monitor.py &
+python3 -u /app/discord_monitor.py 2>&1 &
+MONITOR_PID=$!
+echo "Monitor de Discord iniciado con PID: $MONITOR_PID"
 
 # 6. Iniciar el servidor
 echo "Arrancando Minecraft..."
