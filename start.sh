@@ -13,9 +13,10 @@ cp -rf /app/versions /data/
 # 2. CONFIGURACIÓN: AQUI ESTABA EL PROBLEMA
 # Antes preguntábamos si existía. Ahora lo forzamos para que tus cambios en GitHub
 # se apliquen en el servidor real.
-echo "Actualizando server.properties y ops.json..."
+echo "Actualizando server.properties, ops.json y usercache.json..."
 cp -f /app/server.properties /data/server.properties
 cp -f /app/ops.json /data/ops.json
+cp -f /app/usercache.json /data/usercache.json
 
 # 3. Archivos de estado (Estos SI los protegemos)
 # La whitelist se suele cambiar desde dentro del juego
@@ -26,6 +27,12 @@ fi
 
 # 4. Aceptar EULA
 echo "eula=true" > /data/eula.txt
+
+# OPCIONAL: Descomentar estas líneas para regenerar el mundo con nueva seed
+# ADVERTENCIA: Esto BORRARÁ el mundo actual permanentemente
+# echo "Regenerando mundo con nueva seed..."
+# rm -rf /data/world /data/world_nether /data/world_the_end
+# rm -rf /data/DIM-1 /data/DIM1
 
 # 5. Iniciar el monitor de Discord en segundo plano (sin buffer)
 echo "Iniciando monitor de Discord..."

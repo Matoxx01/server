@@ -55,7 +55,7 @@ def send_discord_notification(player_name, event_time, event_type="join"):
         "color": color,
         "timestamp": datetime.utcnow().isoformat(),
         "footer": {
-            "text": "iClub Minecraft Server"
+            "text": "Smiling Friends server"
         },
         "fields": [
             {
