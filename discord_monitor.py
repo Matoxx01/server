@@ -104,14 +104,35 @@ def monitor_logs():
         
         print("✅ Listo! Ahora monitoreando eventos nuevos en tiempo real...", flush=True)
         
+        # Contador para debug
+        heartbeat_counter = 0
+        
         # Ahora monitorear nuevas líneas en tiempo real
         while True:
+            # Verificar si el archivo fue truncado/rotado
+            current_pos = f.tell()
+            f.seek(0, 2)  # Ir al final
+            file_size = f.tell()
+            
+            if current_pos > file_size:
+                print("🔄 Archivo rotado, reiniciando lectura...", flush=True)
+                f.seek(0)
+            else:
+                f.seek(current_pos)
+            
             line = f.readline()
             
             if line:
+                # Reset heartbeat cuando hay actividad
+                heartbeat_counter = 0
+                
+                # Debug: mostrar TODAS las líneas del servidor para verificar que está leyendo
+                if '[Server thread/INFO]' in line:
+                    print(f"📝 LOG: {line.strip()}", flush=True)
+                
                 # Debug: mostrar líneas que contienen "joined"
                 if 'joined' in line.lower():
-                    print(f"🔍 Línea detectada: {line.strip()}", flush=True)
+                    print(f"🔍 Línea con 'joined' detectada: {line.strip()}", flush=True)
                 
                 # Buscar el patrón de jugador uniéndose
                 match = JOIN_PATTERN.search(line)
@@ -130,6 +151,12 @@ def monitor_logs():
                     print(f"⚠️ Línea no coincidió con el patrón: {line.strip()}", flush=True)
             else:
                 # No hay nuevas líneas, esperar un momento
+                heartbeat_counter += 1
+                
+                # Mostrar señal de vida cada 30 segundos
+                if heartbeat_counter % 15 == 0:
+                    print(f"💓 Monitor activo... ({heartbeat_counter * CHECK_INTERVAL}s esperando)", flush=True)
+                
                 time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
