@@ -13,18 +13,15 @@ cp -rf /app/versions /data/
 # 2. CONFIGURACIÓN: AQUI ESTABA EL PROBLEMA
 # Antes preguntábamos si existía. Ahora lo forzamos para que tus cambios en GitHub
 # se apliquen en el servidor real.
-echo "Actualizando server.properties..."
+echo "Actualizando server.properties y ops.json..."
 cp -f /app/server.properties /data/server.properties
+cp -f /app/ops.json /data/ops.json
 
 # 3. Archivos de estado (Estos SI los protegemos)
-# La whitelist y ops (administradores) se suelen cambiar desde dentro del juego
-# así que es mejor no sobrescribirlos si ya existen.
+# La whitelist se suele cambiar desde dentro del juego
+# así que es mejor no sobrescribirla si ya existe.
 if [ ! -f /data/whitelist.json ]; then
     cp /app/whitelist.json /data/
-fi
-
-if [ ! -f /data/ops.json ]; then
-    cp /app/ops.json /data/
 fi
 
 # 4. Aceptar EULA

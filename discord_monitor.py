@@ -21,11 +21,19 @@ JOIN_PATTERN = re.compile(r'\[(\d{2}:\d{2}:\d{2})\]\s+\[Server thread/INFO\]:\s+
 
 def send_discord_message(player_name, join_time):
     """Envía un mensaje a Discord cuando un jugador se une"""
+    print("=" * 50, flush=True)
+    print(f"📤 INICIANDO ENVÍO DE WEBHOOK", flush=True)
+    print(f"   Jugador: {player_name}", flush=True)
+    print(f"   Hora: {join_time}", flush=True)
+    
     if not DISCORD_WEBHOOK_URL:
-        print("⚠️ DISCORD_WEBHOOK_URL no está configurado", flush=True)
+        print("❌ ERROR: DISCORD_WEBHOOK_URL no está configurado", flush=True)
         return
     
-    print(f"📤 Enviando notificación a Discord para: {player_name}...", flush=True)
+    # Mostrar webhook ofuscado
+    webhook_preview = DISCORD_WEBHOOK_URL[:50] + "..." if len(DISCORD_WEBHOOK_URL) > 50 else DISCORD_WEBHOOK_URL
+    print(f"   Webhook: {webhook_preview}", flush=True)
+    print("   Preparando payload...", flush=True)
     
     # Crear el mensaje embebido
     embed = {
@@ -49,15 +57,48 @@ def send_discord_message(player_name, join_time):
         "embeds": [embed]
     }
     
+    print("   Realizando petición POST...", flush=True)
+    
     try:
         response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        print(f"   Código de respuesta: {response.status_code}", flush=True)
+        
         if response.status_code == 204:
-            print(f"✅ NOTIFICACIÓN ENVIADA A DISCORD: {player_name} conectado!", flush=True)
-        else:
-            print(f"❌ Error al enviar a Discord: HTTP {response.status_code}", flush=True)
+            print("✅ ¡NOTIFICACIÓN ENVIADA EXITOSAMENTE A DISCORD!", flush=True)
+            print(f"   Jugador: {player_name}", flush=True)
+        elif response.status_code == 429:
+            print("⚠️ Rate limit alcanzado (demasiadas solicitudes)", flush=True)
             print(f"   Respuesta: {response.text}", flush=True)
+        else:
+            print(f"❌ Error al enviar webhook", flush=True)
+            print(f"   HTTP Status: {response.status_code}", flush=True)
+            print(f"   Respuesta: {response.text[:200]}", flush=True)
+    except requests.exceptions.Timeout:
+        print("❌ TIMEOUT: La petición tardó más de 10 segundos", flush=True)
+        print("   ¿Hay problemas de conectividad?", flush=True)
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ ERROR DE CONEXIÓN: No se pudo conectar a Discord", flush=True)
+        print(f"   Detalles: {str(e)[:200]}", flush=True)
+        print("   ¿Railway tiene acceso a internet?", flush=True)
     except Exception as e:
-        print(f"❌ Error de conexión con Discord: {e}", flush=True)
+        print(f"❌ ERROR INESPERADO: {type(e).__name__}", flush=True)
+        print(f"   Mensaje: {str(e)[:200]}", flush=True)
+        import traceback
+        print("   Traceback:", flush=True)
+        traceback.print_exc()
+    
+    print("=" * 50, flush=True)
+
+def test_connectivity():
+    """Prueba la conectividad a Discord"""
+    print("🔌 Probando conectividad a Discord...", flush=True)
+    try:
+        test_response = requests.get("https://discord.com", timeout=5)
+        print(f"   ✅ Discord alcanzable (Status: {test_response.status_code})", flush=True)
+        return True
+    except Exception as e:
+        print(f"   ❌ No se puede alcanzar Discord: {e}", flush=True)
+        return False
 
 def monitor_logs():
     """Monitorea el archivo de logs en tiempo real"""
@@ -65,11 +106,23 @@ def monitor_logs():
     print("🔍 MONITOR DE DISCORD INICIADO", flush=True)
     print("=" * 50, flush=True)
     
-    if not DISCORD_WEBHOOK_URL:
-        print("⚠️ ADVERTENCIA: DISCORD_WEBHOOK_URL no está configurado.", flush=True)
-        print("   Configura la variable de entorno para recibir notificaciones.", flush=True)
+    # Debug de variables de entorno
+    print("🔧 Verificando configuración:", flush=True)
+    webhook_var = os.getenv('DISCORD_WEBHOOK_URL')
+    if not webhook_var:
+        print("   ❌ DISCORD_WEBHOOK_URL: NO CONFIGURADA", flush=True)
+        print("   Variables disponibles:", flush=True)
+        for key in sorted(os.environ.keys()):
+            if 'DISCORD' in key.upper() or 'WEBHOOK' in key.upper():
+                print(f"      - {key}", flush=True)
     else:
-        print(f"✅ Webhook configurado: {DISCORD_WEBHOOK_URL[:50]}...", flush=True)
+        webhook_preview = webhook_var[:50] + "..." if len(webhook_var) > 50 else webhook_var
+        print(f"   ✅ DISCORD_WEBHOOK_URL: {webhook_preview}", flush=True)
+        print(f"   Longitud: {len(webhook_var)} caracteres", flush=True)
+    
+    # Test de conectividad
+    test_connectivity()
+    print("=" * 50, flush=True)
     
     # Esperar a que el archivo de log exista
     log_path = Path(LOG_FILE)
