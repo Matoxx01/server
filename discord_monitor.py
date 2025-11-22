@@ -17,7 +17,7 @@ CHECK_INTERVAL = 2  # segundos
 
 # Patrón para detectar jugadores uniéndose
 # Formato: [HH:MM:SS] [Server thread/INFO]: PlayerName joined the game
-JOIN_PATTERN = re.compile(r'\[(\d{2}:\d{2}:\d{2})\] \[Server thread/INFO\]: (.+?) joined the game')
+JOIN_PATTERN = re.compile(r'\[(\d{2}:\d{2}:\d{2})\]\s+\[Server thread/INFO\]:\s+(.+?)\s+joined the game')
 
 def send_discord_message(player_name, join_time):
     """Envía un mensaje a Discord cuando un jugador se une"""
@@ -84,6 +84,7 @@ def monitor_logs():
     
     print(f"✅ MONITOREANDO: {LOG_FILE}", flush=True)
     print("   Esperando que jugadores se conecten...", flush=True)
+    print("   Buscando el patrón: 'joined the game'", flush=True)
     
     # Abrir el archivo y posicionarse al final
     with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
@@ -94,6 +95,10 @@ def monitor_logs():
             line = f.readline()
             
             if line:
+                # Debug: mostrar líneas que contienen "joined"
+                if 'joined' in line.lower():
+                    print(f"🔍 Línea detectada: {line.strip()}", flush=True)
+                
                 # Buscar el patrón de jugador uniéndose
                 match = JOIN_PATTERN.search(line)
                 if match:
@@ -101,6 +106,8 @@ def monitor_logs():
                     player_name = match.group(2)
                     print(f"\n🎮 JUGADOR DETECTADO: {player_name} a las {join_time}", flush=True)
                     send_discord_message(player_name, join_time)
+                elif 'joined the game' in line:
+                    print(f"⚠️ Línea no coincidió con el patrón: {line.strip()}", flush=True)
             else:
                 # No hay nuevas líneas, esperar un momento
                 time.sleep(CHECK_INTERVAL)
