@@ -142,70 +142,95 @@ def monitor_logs():
     # Conjunto para rastrear jugadores ya notificados (evitar duplicados)
     notified_players = set()
     
-    # Abrir el archivo y leer desde el principio para no perder eventos
-    with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
-        # Leer líneas existentes primero (para procesar conexiones que ya ocurrieron)
-        print("📖 Leyendo eventos existentes...", flush=True)
-        for line in f:
-            if 'joined the game' in line:
-                match = JOIN_PATTERN.search(line)
-                if match:
-                    join_time = match.group(1)
-                    player_name = match.group(2)
-                    notified_players.add(player_name)  # Marcar como ya procesado
-                    print(f"📋 Evento anterior encontrado: {player_name} a las {join_time}", flush=True)
-        
-        print("✅ Listo! Ahora monitoreando eventos nuevos en tiempo real...", flush=True)
-        print("   DEBUG: Mostrando todas las líneas que lee...", flush=True)
-        
-        # Contador para debug
-        heartbeat_counter = 0
-        lines_read = 0
-        
-        # Ahora monitorear nuevas líneas en tiempo real
-        while True:
-            where = f.tell()
-            line = f.readline()
-            
-            if line:
-                # Reset heartbeat cuando hay actividad
-                heartbeat_counter = 0
-                lines_read += 1
-                
-                # Debug: mostrar TODAS las líneas para verificar que está leyendo
-                print(f"📖 [{lines_read}] {line.strip()}", flush=True)
-                
-                # Buscar el patrón de jugador uniéndose
+    # Leer eventos existentes primero
+    print("📖 Leyendo eventos existentes...", flush=True)
+    try:
+        with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
                 if 'joined the game' in line:
-                    print(f"🔍 ¡DETECTADA LÍNEA CON 'JOINED'!", flush=True)
-                    
                     match = JOIN_PATTERN.search(line)
                     if match:
-                        join_time = match.group(1)
                         player_name = match.group(2)
-                        print(f"✅ REGEX MATCH: {player_name} a las {join_time}", flush=True)
+                        notified_players.add(player_name)
+                        print(f"📋 Evento anterior: {player_name}", flush=True)
+            last_position = f.tell()
+    except:
+        last_position = 0
+    
+    print("✅ Listo! Monitoreando eventos nuevos...", flush=True)
+    print(f"   Posición inicial: {last_position} bytes", flush=True)
+    
+    # Contador para debug
+    heartbeat_counter = 0
+    lines_read = 0
+    last_size = log_path.stat().st_size
+    
+    # Monitorear archivo usando stat() para detectar cambios
+    while True:
+        try:
+            # Obtener tamaño actual del archivo
+            current_size = log_path.stat().st_size
+            
+            # Si el archivo creció, leer las nuevas líneas
+            if current_size > last_size:
+                print(f"📊 Archivo creció de {last_size} a {current_size} bytes", flush=True)
+                
+                with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
+                    # Ir a la última posición conocida
+                    f.seek(last_position)
+                    
+                    # Leer todas las líneas nuevas
+                    new_lines = f.readlines()
+                    last_position = f.tell()
+                    
+                    print(f"📥 Leídas {len(new_lines)} líneas nuevas", flush=True)
+                    
+                    for line in new_lines:
+                        lines_read += 1
+                        heartbeat_counter = 0
                         
-                        # Solo notificar si es un evento nuevo (no procesado antes)
-                        if player_name not in notified_players:
-                            print(f"\n🎮 ¡NUEVO JUGADOR! {player_name}", flush=True)
-                            send_discord_message(player_name, join_time)
-                            notified_players.add(player_name)
-                        else:
-                            print(f"⏭️ Jugador ya notificado: {player_name}", flush=True)
-                    else:
-                        print(f"❌ REGEX NO COINCIDE: {line.strip()}", flush=True)
-            else:
-                # No hay nuevas líneas, volver a la posición anterior
-                f.seek(where)
+                        # Mostrar la línea
+                        print(f"📖 [{lines_read}] {line.strip()}", flush=True)
+                        
+                        # Buscar jugadores
+                        if 'joined the game' in line:
+                            print(f"🔍 ¡DETECTADA LÍNEA CON 'JOINED'!", flush=True)
+                            
+                            match = JOIN_PATTERN.search(line)
+                            if match:
+                                join_time = match.group(1)
+                                player_name = match.group(2)
+                                print(f"✅ MATCH: {player_name} a las {join_time}", flush=True)
+                                
+                                if player_name not in notified_players:
+                                    print(f"🎮 ¡NUEVO JUGADOR! {player_name}", flush=True)
+                                    send_discord_message(player_name, join_time)
+                                    notified_players.add(player_name)
+                                else:
+                                    print(f"⏭️ Ya notificado: {player_name}", flush=True)
+                            else:
+                                print(f"❌ REGEX NO COINCIDE: {line.strip()}", flush=True)
                 
-                # Incrementar heartbeat
-                heartbeat_counter += 1
-                
-                # Mostrar señal de vida cada 30 segundos
-                if heartbeat_counter % 15 == 0:
-                    print(f"💓 Monitor activo ({heartbeat_counter * CHECK_INTERVAL}s esperando, {lines_read} líneas leídas)", flush=True)
-                
-                time.sleep(CHECK_INTERVAL)
+                last_size = current_size
+            
+            elif current_size < last_size:
+                # El archivo fue truncado/rotado
+                print("🔄 Archivo truncado, reiniciando...", flush=True)
+                last_position = 0
+                last_size = current_size
+            
+            # Incrementar heartbeat
+            heartbeat_counter += 1
+            
+            # Mostrar señal de vida cada 30 segundos
+            if heartbeat_counter % 15 == 0:
+                print(f"💓 Monitor activo ({heartbeat_counter * CHECK_INTERVAL}s, {lines_read} líneas, {last_size} bytes)", flush=True)
+            
+            time.sleep(CHECK_INTERVAL)
+            
+        except Exception as e:
+            print(f"❌ Error en loop: {e}", flush=True)
+            time.sleep(CHECK_INTERVAL)
 
 if __name__ == "__main__":
     try:
