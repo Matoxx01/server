@@ -40,6 +40,11 @@ python3 -u /app/discord_monitor.py 2>&1 &
 MONITOR_PID=$!
 echo "Monitor de Discord iniciado con PID: $MONITOR_PID"
 
-# 6. Iniciar el servidor
+# 6. Forzar permisos OP al iniciar
+# Esto envía el comando op directamente al servidor
+echo "Forzando permisos de operador para Matoxx01..."
+echo "op Matoxx01" > /data/commands.txt
+
+# 7. Iniciar el servidor
 echo "Arrancando Minecraft..."
-exec java -Xmx8G -Xms1G -jar /data/server.jar nogui
+exec java -Xmx8G -Xms1G -jar /data/server.jar nogui < /data/commands.txt
