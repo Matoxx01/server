@@ -11,35 +11,48 @@ sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 sys.stderr = os.fdopen(sys.stderr.fileno(), 'w', buffering=1)
 
 # Configuración
-DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
+# Soporta múltiples webhooks separados por coma
+DISCORD_WEBHOOKS_STR = os.getenv('DISCORD_WEBHOOK_URL', '')
+DISCORD_WEBHOOKS = [w.strip() for w in DISCORD_WEBHOOKS_STR.split(',') if w.strip()]
+
 LOG_FILE = '/data/logs/latest.log'
 CHECK_INTERVAL = 2  # segundos
 
-# Patrón para detectar jugadores uniéndose
+# Patrones para detectar eventos
 # Formato: [HH:MM:SS] [Server thread/INFO]: PlayerName joined the game
 JOIN_PATTERN = re.compile(r'\[(\d{2}:\d{2}:\d{2})\]\s+\[Server thread/INFO\]:\s+(.+?)\s+joined the game')
+# Formato: [HH:MM:SS] [Server thread/INFO]: PlayerName left the game
+LEAVE_PATTERN = re.compile(r'\[(\d{2}:\d{2}:\d{2})\]\s+\[Server thread/INFO\]:\s+(.+?)\s+left the game')
 
-def send_discord_message(player_name, join_time):
-    """Envía un mensaje a Discord cuando un jugador se une"""
+def send_discord_notification(player_name, event_time, event_type="join"):
+    """Envía una notificación a Discord cuando ocurre un evento"""
     print("=" * 50, flush=True)
     print(f"📤 INICIANDO ENVÍO DE WEBHOOK", flush=True)
     print(f"   Jugador: {player_name}", flush=True)
-    print(f"   Hora: {join_time}", flush=True)
+    print(f"   Evento: {event_type}", flush=True)
+    print(f"   Hora: {event_time}", flush=True)
     
-    if not DISCORD_WEBHOOK_URL:
+    if not DISCORD_WEBHOOKS:
         print("❌ ERROR: DISCORD_WEBHOOK_URL no está configurado", flush=True)
         return
     
-    # Mostrar webhook ofuscado
-    webhook_preview = DISCORD_WEBHOOK_URL[:50] + "..." if len(DISCORD_WEBHOOK_URL) > 50 else DISCORD_WEBHOOK_URL
-    print(f"   Webhook: {webhook_preview}", flush=True)
-    print("   Preparando payload...", flush=True)
+    print(f"   Webhooks configurados: {len(DISCORD_WEBHOOKS)}", flush=True)
+    
+    # Configurar el mensaje según el tipo de evento
+    if event_type == "join":
+        title = "🎮 Jugador conectado"
+        description = f"**{player_name}** se ha unido al servidor"
+        color = 5763719  # Verde
+    else:  # leave
+        title = "👋 Jugador desconectado"
+        description = f"**{player_name}** se ha retirado del servidor"
+        color = 15158332  # Rojo
     
     # Crear el mensaje embebido
     embed = {
-        "title": "🎮 Jugador conectado",
-        "description": f"**{player_name}** se ha unido al servidor",
-        "color": 5763719,  # Color verde
+        "title": title,
+        "description": description,
+        "color": color,
         "timestamp": datetime.utcnow().isoformat(),
         "footer": {
             "text": "iClub Minecraft Server"
@@ -47,7 +60,7 @@ def send_discord_message(player_name, join_time):
         "fields": [
             {
                 "name": "⏰ Hora",
-                "value": join_time,
+                "value": event_time,
                 "inline": True
             }
         ]
@@ -57,35 +70,35 @@ def send_discord_message(player_name, join_time):
         "embeds": [embed]
     }
     
-    print("   Realizando petición POST...", flush=True)
-    
-    try:
-        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
-        print(f"   Código de respuesta: {response.status_code}", flush=True)
+    # Enviar a todos los webhooks configurados
+    success_count = 0
+    for i, webhook_url in enumerate(DISCORD_WEBHOOKS, 1):
+        webhook_preview = webhook_url[:50] + "..." if len(webhook_url) > 50 else webhook_url
+        print(f"   [{i}/{len(DISCORD_WEBHOOKS)}] Enviando a: {webhook_preview}", flush=True)
         
-        if response.status_code == 204:
-            print("✅ ¡NOTIFICACIÓN ENVIADA EXITOSAMENTE A DISCORD!", flush=True)
-            print(f"   Jugador: {player_name}", flush=True)
-        elif response.status_code == 429:
-            print("⚠️ Rate limit alcanzado (demasiadas solicitudes)", flush=True)
-            print(f"   Respuesta: {response.text}", flush=True)
-        else:
-            print(f"❌ Error al enviar webhook", flush=True)
-            print(f"   HTTP Status: {response.status_code}", flush=True)
-            print(f"   Respuesta: {response.text[:200]}", flush=True)
-    except requests.exceptions.Timeout:
-        print("❌ TIMEOUT: La petición tardó más de 10 segundos", flush=True)
-        print("   ¿Hay problemas de conectividad?", flush=True)
-    except requests.exceptions.ConnectionError as e:
-        print(f"❌ ERROR DE CONEXIÓN: No se pudo conectar a Discord", flush=True)
-        print(f"   Detalles: {str(e)[:200]}", flush=True)
-        print("   ¿Railway tiene acceso a internet?", flush=True)
-    except Exception as e:
-        print(f"❌ ERROR INESPERADO: {type(e).__name__}", flush=True)
-        print(f"   Mensaje: {str(e)[:200]}", flush=True)
-        import traceback
-        print("   Traceback:", flush=True)
-        traceback.print_exc()
+        try:
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            
+            if response.status_code == 204:
+                print(f"   [{i}] ✅ Enviado exitosamente", flush=True)
+                success_count += 1
+            elif response.status_code == 429:
+                print(f"   [{i}] ⚠️ Rate limit alcanzado", flush=True)
+            else:
+                print(f"   [{i}] ❌ Error HTTP {response.status_code}", flush=True)
+        except requests.exceptions.Timeout:
+            print(f"   [{i}] ❌ Timeout", flush=True)
+        except requests.exceptions.ConnectionError:
+            print(f"   [{i}] ❌ Error de conexión", flush=True)
+        except Exception as e:
+            print(f"   [{i}] ❌ Error: {type(e).__name__}", flush=True)
+    
+    if success_count == len(DISCORD_WEBHOOKS):
+        print(f"✅ ¡NOTIFICACIÓN ENVIADA A TODOS LOS WEBHOOKS! ({success_count}/{len(DISCORD_WEBHOOKS)})", flush=True)
+    elif success_count > 0:
+        print(f"⚠️ Notificación enviada parcialmente ({success_count}/{len(DISCORD_WEBHOOKS)})", flush=True)
+    else:
+        print(f"❌ No se pudo enviar a ningún webhook", flush=True)
     
     print("=" * 50, flush=True)
 
@@ -108,17 +121,17 @@ def monitor_logs():
     
     # Debug de variables de entorno
     print("🔧 Verificando configuración:", flush=True)
-    webhook_var = os.getenv('DISCORD_WEBHOOK_URL')
-    if not webhook_var:
+    if not DISCORD_WEBHOOKS:
         print("   ❌ DISCORD_WEBHOOK_URL: NO CONFIGURADA", flush=True)
         print("   Variables disponibles:", flush=True)
         for key in sorted(os.environ.keys()):
             if 'DISCORD' in key.upper() or 'WEBHOOK' in key.upper():
                 print(f"      - {key}", flush=True)
     else:
-        webhook_preview = webhook_var[:50] + "..." if len(webhook_var) > 50 else webhook_var
-        print(f"   ✅ DISCORD_WEBHOOK_URL: {webhook_preview}", flush=True)
-        print(f"   Longitud: {len(webhook_var)} caracteres", flush=True)
+        print(f"   ✅ Webhooks configurados: {len(DISCORD_WEBHOOKS)}", flush=True)
+        for i, webhook in enumerate(DISCORD_WEBHOOKS, 1):
+            preview = webhook[:50] + "..." if len(webhook) > 50 else webhook
+            print(f"      [{i}] {preview}", flush=True)
     
     # Test de conectividad
     test_connectivity()
@@ -146,19 +159,22 @@ def monitor_logs():
     print("📖 Leyendo eventos existentes...", flush=True)
     try:
         with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
-            event_count = 0
+            join_count = 0
+            leave_count = 0
             for line in f:
                 if 'joined the game' in line:
-                    event_count += 1
+                    join_count += 1
+                elif 'left the game' in line:
+                    leave_count += 1
             last_position = f.tell()
-            if event_count > 0:
-                print(f"📋 Encontrados {event_count} eventos anteriores (no se notificarán)", flush=True)
+            if join_count > 0 or leave_count > 0:
+                print(f"📋 Eventos anteriores: {join_count} conexiones, {leave_count} desconexiones (no se notificarán)", flush=True)
     except:
         last_position = 0
     
     print("✅ Listo! Monitoreando eventos nuevos...", flush=True)
     print(f"   Posición inicial: {last_position} bytes", flush=True)
-    print("   Desde ahora se notificarán TODAS las conexiones nuevas", flush=True)
+    print("   Detectando: conexiones y desconexiones", flush=True)
     
     # Contador para debug
     heartbeat_counter = 0
@@ -196,25 +212,50 @@ def monitor_logs():
                         # Mostrar la línea
                         print(f"📖 [{lines_read}] {line.strip()}", flush=True)
                         
-                        # Buscar jugadores
+                        # Buscar conexiones de jugadores
                         if 'joined the game' in line:
-                            print(f"🔍 ¡DETECTADA LÍNEA CON 'JOINED'!", flush=True)
+                            print(f"🔍 ¡DETECTADA CONEXIÓN!", flush=True)
                             
                             match = JOIN_PATTERN.search(line)
                             if match:
-                                join_time = match.group(1)
+                                event_time = match.group(1)
                                 player_name = match.group(2)
-                                print(f"✅ MATCH: {player_name} a las {join_time}", flush=True)
+                                print(f"✅ MATCH: {player_name} a las {event_time}", flush=True)
                                 
                                 # Verificar cooldown para evitar spam
                                 current_time = time.time()
-                                last_notif = last_notification_time.get(player_name, 0)
+                                last_notif = last_notification_time.get(f"join_{player_name}", 0)
                                 time_since_last = current_time - last_notif
                                 
                                 if time_since_last >= NOTIFICATION_COOLDOWN:
                                     print(f"🎮 ¡CONEXIÓN DETECTADA! {player_name}", flush=True)
-                                    send_discord_message(player_name, join_time)
-                                    last_notification_time[player_name] = current_time
+                                    send_discord_notification(player_name, event_time, "join")
+                                    last_notification_time[f"join_{player_name}"] = current_time
+                                else:
+                                    remaining = int(NOTIFICATION_COOLDOWN - time_since_last)
+                                    print(f"⏭️ Cooldown activo: {player_name} (esperar {remaining}s)", flush=True)
+                            else:
+                                print(f"❌ REGEX NO COINCIDE: {line.strip()}", flush=True)
+                        
+                        # Buscar desconexiones de jugadores
+                        elif 'left the game' in line:
+                            print(f"🔍 ¡DETECTADA DESCONEXIÓN!", flush=True)
+                            
+                            match = LEAVE_PATTERN.search(line)
+                            if match:
+                                event_time = match.group(1)
+                                player_name = match.group(2)
+                                print(f"✅ MATCH: {player_name} a las {event_time}", flush=True)
+                                
+                                # Verificar cooldown para evitar spam
+                                current_time = time.time()
+                                last_notif = last_notification_time.get(f"leave_{player_name}", 0)
+                                time_since_last = current_time - last_notif
+                                
+                                if time_since_last >= NOTIFICATION_COOLDOWN:
+                                    print(f"👋 ¡DESCONEXIÓN DETECTADA! {player_name}", flush=True)
+                                    send_discord_notification(player_name, event_time, "leave")
+                                    last_notification_time[f"leave_{player_name}"] = current_time
                                 else:
                                     remaining = int(NOTIFICATION_COOLDOWN - time_since_last)
                                     print(f"⏭️ Cooldown activo: {player_name} (esperar {remaining}s)", flush=True)
