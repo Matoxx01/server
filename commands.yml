@@ -1,0 +1,11 @@
+# Configuración de comandos personalizados
+# Este archivo reemplaza la sección 'aliases' de bukkit.yml
+
+command-block-overrides: []
+ignore-vanilla-permissions: false
+aliases:
+  # Ejemplos de comandos personalizados
+  # spawn:
+  #   - "tp $1 0 64 0"
+  # home:
+  #   - "tpa $1"

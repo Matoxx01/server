@@ -1,0 +1,61 @@
+# Sistema de permisos básico de Bukkit
+# NOTA: Para sistemas avanzados, considera usar LuckPerms plugin
+
+groups:
+  default:
+    permissions:
+      # Permisos básicos para jugadores
+      essentials.help: true
+      essentials.list: true
+      essentials.motd: true
+      essentials.rules: true
+      # GriefPrevention - Protección de terrenos
+      griefprevention.createclaims: true
+      griefprevention.abandonallclaims: true
+      griefprevention.visualizenearbyclaims: true
+      # Graves - Sistema de tumbas
+      graves.use: true
+      graves.list: true
+      graves.teleport: true
+      # DecentHolograms - Ver hologramas
+      decentholograms.see: true
+      # SkinsRestorer
+      skinsrestorer.command: true
+      skinsrestorer.command.set: true
+      skinsrestorer.command.clear: true
+  
+  moderator:
+    inheritance:
+      - default
+    permissions:
+      # Permisos de moderación
+      minecraft.command.kick: true
+      minecraft.command.ban: true
+      minecraft.command.ban-ip: true
+      minecraft.command.pardon: true
+      minecraft.command.pardon-ip: true
+      # GriefPrevention admin
+      griefprevention.adjustclaimblocks: true
+      griefprevention.deleteclaims: true
+      griefprevention.deleteallclaims: true
+      # Graves admin
+      graves.admin: true
+      graves.bypass: true
+  
+  admin:
+    inheritance:
+      - moderator
+    permissions:
+      # Acceso total
+      '*': true
+      # DecentHolograms admin
+      decentholograms.admin: true
+      # Bypass de protecciones
+      griefprevention.ignoreclaims: true
+
+users:
+  Matoxx01:
+    group:
+      - admin
+    permissions:
+      - '*'
